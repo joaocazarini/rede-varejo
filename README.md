@@ -1,6 +1,6 @@
 # Da matriz à nuvem · laboratório de Network Architect Solutions
 
-- **Grupo:** ⟨nomes e RMs⟩
+- **Grupo:** João Victor Cazarini (RM 562543), Diego Bondezan (RM 562013), Guilherme Amaral (RM 562112, líder), Felipe Garcia (RM 563521), Diogo Weyne (RM 572347) · turma ESPX2
 - **Onde a rede roda:** GitHub Codespaces, máquina de 2 núcleos, imagem do containerlab 0.68.0 (`.devcontainer/devcontainer.json`)
 - **Agregados do plano:** matriz 10.20.0.0/22, loja 1 10.20.8.0/23, loja 2 10.20.10.0/23, nuvem 10.20.32.0/23 (dentro de 10.20.0.0/16)
 
