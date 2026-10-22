@@ -1,0 +1,14 @@
+local,segmento,hosts
+matriz,usuarios,200
+matriz,servidores,50
+matriz,gestao,20
+loja1,caixas,40
+loja1,wifi-corp,60
+loja1,convidados,120
+loja1,iot,25
+loja2,caixas,40
+loja2,wifi-corp,60
+loja2,convidados,120
+loja2,iot,25
+nuvem,publica,20
+nuvem,privada,100
