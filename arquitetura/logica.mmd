@@ -1,0 +1,63 @@
+%% Visão lógica: segmentos, zonas e regras, custos OSPF, NAT e o túnel que a internet representa
+flowchart LR
+  subgraph MATRIZ["Matriz · agregado 10.20.0.0/22 · sem firewall"]
+    USR["usuários<br/>10.20.0.0/23 · gw .0.1"]
+    SRV[("servidores<br/>10.20.2.0/25 · gw .2.1<br/>ERP :443 · vídeo :8554")]
+    GES["gestão<br/>10.20.2.128/27<br/>(reservado)"]
+  end
+
+  subgraph WAN["WAN · OSPF área 0"]
+    MPLS{{"MPLS · custo 10<br/>caminho principal"}}
+    VPN{{"túnel IPsec sobre a internet · custo 100<br/>reserva (no lab: OSPF no provedor)"}}
+  end
+
+  NET(("internet"))
+
+  subgraph L1["Loja 1 · agregado 10.20.8.0/23 · nftables: negar por padrão"]
+    CX1["caixas · VLAN 10<br/>10.20.9.128/26"]
+    WC1["loja-corp · VLAN 20<br/>10.20.9.0/25"]
+    CV1["loja-clientes · VLAN 30<br/>10.20.8.0/24"]
+    IO1["loja-sensores · VLAN 40<br/>10.20.9.192/26"]
+  end
+
+  subgraph L2["Loja 2 · agregado 10.20.10.0/23 · nftables: negar por padrão"]
+    CX2["caixas · VLAN 10<br/>10.20.11.128/26"]
+  end
+
+  subgraph NV["Nuvem · VPC 10.20.32.0/23"]
+    PRV["privada<br/>10.20.32.0/24 · app .32.10"]
+    PUB["pública<br/>10.20.33.0/27 · NAT"]
+  end
+
+  SRV === MPLS
+  SRV -.- VPN
+  MPLS === CX1
+  VPN -.- CX1
+  MPLS === CX2
+  VPN -.- CX2
+  MPLS === PRV
+  VPN -.- PRV
+
+  CX1 -->|"TCP 443 + ping"| SRV
+  CX2 -->|"TCP 443 + ping"| SRV
+  IO1 -->|"TCP 8554"| SRV
+  CV1 -->|"tudo · NAT 100.64.2.5<br/>só pela internet da loja"| NET
+  CV1 -.-x|"bloqueado: 10.0.0.0/8<br/>mesmo com o MPLS fora"| SRV
+  WC1 -.-x|"sem regra ainda: negado"| SRV
+  PRV -->|"NAT 100.64.2.13"| PUB
+  PUB --> NET
+  NET -.-x|"sem rota de entrada<br/>e descarte na eth2"| PRV
+
+  classDef wan fill:#E7F5EC,stroke:#0A7D3F,color:#1D1A22
+  classDef seg fill:#FFFFFF,stroke:#726B7C,color:#1D1A22
+  classDef conv fill:#FBF1DF,stroke:#B45309,color:#1D1A22
+  classDef srv fill:#FDF2F6,stroke:#F0265D,color:#1D1A22
+  class MPLS,VPN wan
+  class USR,GES,CX1,WC1,IO1,CX2,PRV,PUB seg
+  class CV1 conv
+  class SRV srv
+  style MATRIZ fill:#F5F4F7,stroke:#DFDBE5
+  style WAN fill:#FFFFFF,stroke:#DFDBE5
+  style L1 fill:#F5F4F7,stroke:#DFDBE5
+  style L2 fill:#F5F4F7,stroke:#DFDBE5
+  style NV fill:#F5F4F7,stroke:#DFDBE5

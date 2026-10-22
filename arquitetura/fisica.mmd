@@ -1,0 +1,58 @@
+%% Visão física: locais, provedores, enlaces e equipamentos
+flowchart LR
+  subgraph MATRIZ["Matriz · 10.20.0.0/22"]
+    RM["roteador matriz<br/>FRR · 10.255.0.1"]
+    ERP[("erp<br/>10.20.2.10")]
+    PCM["pcm<br/>10.20.0.10"]
+    RM ---|eth3| ERP
+    RM ---|eth4| PCM
+  end
+
+  MPLS{{"provedor MPLS<br/>link dedicado · custo 10"}}
+  INET{{"provedor de internet<br/>VPN e saída local · custo 100"}}
+  SITE["site na internet<br/>100.64.200.10"]
+  INET ---|eth5 · 100.64.200.0/24| SITE
+
+  subgraph L1["Loja 1 · 10.20.8.0/23"]
+    R1["roteador loja1<br/>FRR + nftables · 10.255.0.11"]
+    C1["caixa1<br/>10.20.9.130"]
+    G1["conv1<br/>10.20.8.10"]
+    I1["iot1<br/>10.20.9.194"]
+    AP["6 pontos de acesso<br/>loja-corp · loja-clientes · loja-sensores"]
+    R1 ---|eth3| C1
+    R1 ---|eth4| G1
+    R1 ---|eth5| I1
+    AP -.-|VLANs 20/30/40| R1
+  end
+
+  subgraph L2["Loja 2 · 10.20.10.0/23"]
+    R2["roteador loja2<br/>FRR + nftables · 10.255.0.12"]
+    C2["caixa2<br/>10.20.11.130"]
+    R2 ---|eth3| C2
+  end
+
+  subgraph NV["Nuvem · 10.20.32.0/23"]
+    RN["roteador nuvem<br/>FRR + nftables · 10.255.0.21"]
+    APP["app<br/>10.20.32.10"]
+    RN ---|eth3| APP
+  end
+
+  RM ===|"eth1 · 100.64.1.0/30"| MPLS
+  MPLS ===|"eth1 · 100.64.1.4/30"| R1
+  MPLS ===|"eth1 · 100.64.1.8/30"| R2
+  MPLS ===|"eth1 · 100.64.1.12/30"| RN
+  RM -.-|"eth2 · 100.64.2.0/30"| INET
+  INET -.-|"eth2 · 100.64.2.4/30"| R1
+  INET -.-|"eth2 · 100.64.2.8/30"| R2
+  INET -.-|"eth2 · 100.64.2.12/30"| RN
+
+  classDef prov fill:#E7F5EC,stroke:#0A7D3F,color:#1D1A22
+  classDef rot fill:#FDF2F6,stroke:#F0265D,color:#1D1A22
+  classDef host fill:#FFFFFF,stroke:#726B7C,color:#1D1A22
+  class MPLS,INET prov
+  class RM,R1,R2,RN rot
+  class ERP,PCM,C1,G1,I1,C2,APP,SITE,AP host
+  style MATRIZ fill:#F5F4F7,stroke:#DFDBE5
+  style L1 fill:#F5F4F7,stroke:#DFDBE5
+  style L2 fill:#F5F4F7,stroke:#DFDBE5
+  style NV fill:#F5F4F7,stroke:#DFDBE5
