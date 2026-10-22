@@ -1,0 +1,29 @@
+#!/usr/sbin/nft -f
+# Nuvem: a sub-rede privada sai para a internet com NAT e não é alcançada de fora
+# eth1 link dedicado · eth2 internet · eth3 sub-rede privada
+
+flush ruleset
+
+define PRIVADA = 10.20.32.0/24
+define EMPRESA = 10.20.0.0/16
+
+table inet nuvem {
+  chain forward {
+    type filter hook forward priority 0; policy accept;
+
+    # respostas (inclusive as do NAT) passam
+    ct state established,related accept
+
+    # pela internet, a privada só aceita a própria empresa (o caminho de reserva).
+    # Na vida real isso seria "só o que chega pelo túnel IPsec"; aqui o túnel é
+    # simulado pelo OSPF no provedor, então o critério é o endereço de origem.
+    iifname "eth2" oifname "eth3" ip saddr != $EMPRESA drop
+  }
+
+  chain postrouting {
+    type nat hook postrouting priority 100;
+
+    # privada -> fora da empresa: troca o endereço privado pelo público (100.64.2.13)
+    oifname "eth2" ip saddr $PRIVADA ip daddr != $EMPRESA masquerade
+  }
+}

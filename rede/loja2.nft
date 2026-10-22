@@ -1,0 +1,23 @@
+#!/usr/sbin/nft -f
+# Firewall da loja 2 (só caixas): negar por padrão
+# eth1 MPLS · eth2 internet · eth3 caixas
+
+flush ruleset
+
+define CAIXAS     = 10.20.11.128/26
+define SERVIDORES = 10.20.2.0/25
+
+table inet loja {
+  chain forward {
+    type filter hook forward priority 0; policy drop;
+
+    # respostas de conexões já autorizadas
+    ct state established,related accept
+
+    # caixas -> ERP na matriz (HTTPS)
+    iifname "eth3" ip saddr $CAIXAS ip daddr $SERVIDORES tcp dport 443 accept
+
+    # caixas -> servidores, ping de teste
+    iifname "eth3" ip saddr $CAIXAS ip daddr $SERVIDORES icmp type echo-request accept
+  }
+}

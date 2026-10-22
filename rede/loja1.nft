@@ -1,0 +1,54 @@
+#!/usr/sbin/nft -f
+# Firewall da loja 1: negar por padrão, uma regra por fluxo de seguranca/fluxos.md
+# eth1 MPLS · eth2 internet · eth3 caixas · eth4 convidados · eth5 IoT
+
+flush ruleset
+
+define CAIXAS     = 10.20.9.128/26
+define CONVIDADOS = 10.20.8.0/24
+define IOT        = 10.20.9.192/26
+define SERVIDORES = 10.20.2.0/25
+define EMPRESA    = 10.0.0.0/8
+define GW_CONV    = 10.20.8.1
+define GW_IOT     = 10.20.9.193
+
+table inet loja {
+  chain forward {
+    type filter hook forward priority 0; policy drop;
+
+    # respostas de conexões já autorizadas
+    ct state established,related accept
+
+    # convidados nunca alcançam a empresa. Fica ANTES da saída para a internet:
+    # com o MPLS fora, a rota para o ERP também sai pela eth2 e seria aceita
+    iifname "eth4" ip daddr $EMPRESA drop
+
+    # caixas -> ERP na matriz (HTTPS)
+    iifname "eth3" ip daddr $SERVIDORES tcp dport 443 accept
+
+    # caixas -> servidores, ping de teste
+    iifname "eth3" ip daddr $SERVIDORES icmp type echo-request accept
+
+    # IoT -> servidor de vídeo na matriz
+    iifname "eth5" ip daddr $SERVIDORES tcp dport 8554 accept
+
+    # convidados -> internet, só pela internet da própria loja (NAT abaixo)
+    iifname "eth4" oifname "eth2" accept
+  }
+
+  chain input {
+    type filter hook input priority 0; policy accept;
+
+    # convidados e IoT só falam com o próprio gateway, nunca com os outros
+    # endereços do roteador (ex.: 10.20.9.129, gateway dos caixas)
+    iifname "eth4" ip daddr != $GW_CONV drop
+    iifname "eth5" ip daddr != $GW_IOT drop
+  }
+
+  chain postrouting {
+    type nat hook postrouting priority 100;
+
+    # convidados saem com o endereço público da loja (100.64.2.5)
+    oifname "eth2" ip saddr $CONVIDADOS masquerade
+  }
+}

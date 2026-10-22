@@ -1,0 +1,129 @@
+name: rede
+
+topology:
+  kinds:
+    linux:
+      image: quay.io/frrouting/frr:10.5.1   # imagem padrão dos nós: roteador FRR
+
+  nodes:
+    # provedores: configuração pronta, não mexam
+    mpls:
+      kind: linux
+      binds:
+        - daemons:/etc/frr/daemons
+        - mpls.conf:/etc/frr/frr.conf
+    inet:
+      kind: linux
+      binds:
+        - daemons:/etc/frr/daemons
+        - inet.conf:/etc/frr/frr.conf
+
+    # roteadores da empresa: o .conf de cada um é escrito pelo grupo
+    matriz:
+      kind: linux
+      binds:
+        - daemons:/etc/frr/daemons
+        - matriz.conf:/etc/frr/frr.conf
+    loja1:
+      kind: linux
+      binds:
+        - daemons:/etc/frr/daemons
+        - loja1.conf:/etc/frr/frr.conf
+        - loja1.nft:/etc/regras.nft
+      exec:
+        - apk add --no-cache nftables
+        - nft -f /etc/regras.nft
+    loja2:
+      kind: linux
+      binds:
+        - daemons:/etc/frr/daemons
+        - loja2.conf:/etc/frr/frr.conf
+        - loja2.nft:/etc/regras.nft
+      exec:
+        - apk add --no-cache nftables
+        - nft -f /etc/regras.nft
+    nuvem:
+      kind: linux
+      binds:
+        - daemons:/etc/frr/daemons
+        - nuvem.conf:/etc/frr/frr.conf
+        - nuvem.nft:/etc/regras.nft
+      exec:
+        - apk add --no-cache nftables
+        - nft -f /etc/regras.nft
+
+    # um site na internet, do lado do provedor
+    internet:
+      kind: linux
+      image: wbitt/network-multitool:3.22.2
+      exec:
+        - ip addr add 100.64.200.10/24 dev eth1
+        - ip route add 100.64.0.0/10 via 100.64.200.1
+
+    # hosts da empresa: endereço e gateway saem do plano (enderecamento/plano.csv)
+    erp:                                    # matriz · servidores 10.20.2.0/25
+      kind: linux
+      image: wbitt/network-multitool:3.22.2
+      env:
+        HTTPS_PORT: "443"    # o ERP responde em HTTPS
+        HTTP_PORT: "8554"    # e o servidor de vídeo, na 8554
+      exec:
+        - ip addr add 10.20.2.10/25 dev eth1
+        - ip route replace default via 10.20.2.1
+    pcm:                                    # matriz · usuários 10.20.0.0/23
+      kind: linux
+      image: wbitt/network-multitool:3.22.2
+      exec:
+        - ip addr add 10.20.0.10/23 dev eth1
+        - ip route replace default via 10.20.0.1
+    caixa1:                                 # loja 1 · caixas 10.20.9.128/26
+      kind: linux
+      image: wbitt/network-multitool:3.22.2
+      exec:
+        - ip addr add 10.20.9.130/26 dev eth1
+        - ip route replace default via 10.20.9.129
+    conv1:                                  # loja 1 · convidados 10.20.8.0/24
+      kind: linux
+      image: wbitt/network-multitool:3.22.2
+      exec:
+        - ip addr add 10.20.8.10/24 dev eth1
+        - ip route replace default via 10.20.8.1
+    iot1:                                   # loja 1 · IoT 10.20.9.192/26
+      kind: linux
+      image: wbitt/network-multitool:3.22.2
+      exec:
+        - ip addr add 10.20.9.194/26 dev eth1
+        - ip route replace default via 10.20.9.193
+    caixa2:                                 # loja 2 · caixas 10.20.11.128/26
+      kind: linux
+      image: wbitt/network-multitool:3.22.2
+      exec:
+        - ip addr add 10.20.11.130/26 dev eth1
+        - ip route replace default via 10.20.11.129
+    app:                                    # nuvem · privada 10.20.32.0/24
+      kind: linux
+      image: wbitt/network-multitool:3.22.2
+      exec:
+        - ip addr add 10.20.32.10/24 dev eth1
+        - ip route replace default via 10.20.32.1
+
+  links:
+    # MPLS: link dedicado
+    - endpoints: ["matriz:eth1", "mpls:eth1"]
+    - endpoints: ["loja1:eth1", "mpls:eth2"]
+    - endpoints: ["loja2:eth1", "mpls:eth3"]
+    - endpoints: ["nuvem:eth1", "mpls:eth4"]
+    # internet
+    - endpoints: ["matriz:eth2", "inet:eth1"]
+    - endpoints: ["loja1:eth2", "inet:eth2"]
+    - endpoints: ["loja2:eth2", "inet:eth3"]
+    - endpoints: ["nuvem:eth2", "inet:eth4"]
+    - endpoints: ["inet:eth5", "internet:eth1"]
+    # redes locais
+    - endpoints: ["matriz:eth3", "erp:eth1"]
+    - endpoints: ["matriz:eth4", "pcm:eth1"]
+    - endpoints: ["loja1:eth3", "caixa1:eth1"]
+    - endpoints: ["loja1:eth4", "conv1:eth1"]
+    - endpoints: ["loja1:eth5", "iot1:eth1"]
+    - endpoints: ["loja2:eth3", "caixa2:eth1"]
+    - endpoints: ["nuvem:eth3", "app:eth1"]

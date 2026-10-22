@@ -1,0 +1,32 @@
+# política de caminhos (SD-WAN): uma entrada por classe de aplicação
+# mpls = link dedicado (custo OSPF 10) · internet = VPN sobre a internet (custo 100)
+# internet-local = sai pela internet da própria loja, com NAT, sem passar pela matriz
+
+caixa:
+  preferido: mpls
+  reserva: internet
+  troca_se: {latencia_ms: 100, perda_pct: 1}
+  motivo: venda parada custa mais que o link
+
+erp:
+  preferido: mpls
+  reserva: internet
+  troca_se: {latencia_ms: 150, perda_pct: 2}
+  motivo: estoque, preço e fechamento do dia dependem do ERP; tolera um pouco mais que o caixa porque não trava a fila
+
+video:
+  preferido: mpls
+  reserva: internet
+  troca_se: {latencia_ms: 300, perda_pct: 5}
+  motivo: as câmeras precisam de banda constante, mas o vídeo aguenta atraso; só troca quando a imagem começa a falhar
+
+backup:
+  preferido: internet
+  reserva: mpls
+  troca_se: {latencia_ms: 1000, perda_pct: 10}
+  motivo: é grande e roda de madrugada; vai pelo caminho barato e não disputa o MPLS com caixa e ERP
+
+convidados:
+  preferido: internet-local   # sai pela internet da própria loja, com NAT
+  reserva: nenhum
+  motivo: tráfego de cliente não é da empresa; não ocupa o MPLS e nunca entra na rede interna (rede/loja1.nft). Se a internet da loja cair, o Wi-Fi de clientes fica sem internet, e tudo bem
